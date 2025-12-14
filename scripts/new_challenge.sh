@@ -4,10 +4,11 @@ set -euo pipefail
 usage() {
   cat <<EOF
 Usage:
-  $0 <chapter> <NN> "Challenge Title" ["Chapter Title"]
+  $0 <chapter> <NN> "Challenge Title" ["Chapter Title"] [--no-code]
 Examples:
   $0 04 01 "Message" "Structs"
   $0 04 01 "Message"         # no chapter title -> chapter dir is '04'
+  $0 04 01 "Multiple Choice Question" --no-code  # skips code/test files
 EOF
   exit 2
 }
@@ -32,6 +33,13 @@ chapter_num=$(pad2 "$1")        # numeric chapter (zero-padded)
 challenge_num=$(pad2 "$2")      # numeric challenge (zero-padded)
 challenge_title="$3"            # required
 chapter_title="${4:-}"          # optional
+
+# check for --no-code flag (removes it from args if present)
+no_code=false
+if [ "${!#}" = "--no-code" ]; then
+  no_code=true
+  set -- "${@:1:$(($#-1))}"
+fi
 
 # build chapter directory name: either "04" or "04-structs"
 if [ -n "$chapter_title" ]; then
@@ -85,16 +93,19 @@ EOF
 fi
 
 # write implementation file
-cat > "$base_dir/$go_file" <<'EOF'
+if [ "$no_code" = false ]; then
+  cat > "$base_dir/$go_file" <<'EOF'
 package main
 
 // Implement the challenge here.
 // This file was generated from the challenge title.
 func main() {}
 EOF
+fi
 
 # write test file
-cat > "$base_dir/$test_file" <<'EOF'
+if [ "$no_code" = false ]; then
+  cat > "$base_dir/$test_file" <<'EOF'
 package main
 
 import "testing"
@@ -103,6 +114,7 @@ func TestPlaceholder(t *testing.T) {
     t.Log("replace this with real tests")
 }
 EOF
+fi
 
 # small challenge README using the human titles
 cat > "$base_dir/$readme_file" <<EOF
@@ -116,10 +128,14 @@ EOF
 
 echo "Created $base_dir"
 echo "Files:"
-echo " - $go_file"
-echo " - $test_file"
+if [ "$no_code" = false ]; then
+  echo " - $go_file"
+  echo " - $test_file"
+fi
 echo " - $readme_file"
 if [ -n "$chapter_title" ]; then
   echo "Chapter README: challenges/${chapter_dirname}/README.md"
 fi
-echo "Run tests: go test ./$base_dir -v"
+if [ "$no_code" = false ]; then
+  echo "Run tests: go test ./$base_dir -v"
+fi
